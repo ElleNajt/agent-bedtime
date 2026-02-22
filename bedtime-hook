@@ -29,37 +29,16 @@ NOW=$(( 10#$(date +%H) * 60 + 10#$(date +%M) ))
 BED_M=$(( 10#${BEDTIME%%:*} * 60 + 10#${BEDTIME##*:} ))
 WAKE_M=$(( 10#${WAKEUP%%:*} * 60 + 10#${WAKEUP##*:} ))
 
-# Bedtime window wraps midnight (e.g. 23:00 -> 06:00)
-if [ "$BED_M" -gt "$WAKE_M" ]; then
-    if [ "$NOW" -lt "$BED_M" ] && [ "$NOW" -ge "$WAKE_M" ]; then
-        exit 0
-    fi
-else
-    if [ "$NOW" -lt "$BED_M" ] || [ "$NOW" -ge "$WAKE_M" ]; then
-        exit 0
-    fi
-fi
-
-# --- We're in the bedtime window ---
-
+# --- Clear stale violations from a previous night ---
+# This runs on every invocation (including daytime) so violations get
+# archived to history.csv on the first prompt after wakeup.
+# Only clear if NOW >= WAKE_M (past wakeup) and the file predates
+# today's wakeup. If NOW < WAKE_M we're in the post-midnight portion
+# of the same bedtime session — don't clear.
 VIOLATIONS_DIR="${HOME}/.agent-bedtime"
 VIOLATIONS_FILE="${VIOLATIONS_DIR}/violations"
 mkdir -p "$VIOLATIONS_DIR"
 
-# Clear stale violations from a previous night.
-# A bedtime session spans from BEDTIME on day N to WAKEUP on day N+1.
-# We should only clear if the file is from a *previous* session.
-# The most recent wakeup that has already passed is the boundary:
-#   - If NOW < WAKE_M (e.g. 02:00, before 06:00): last wakeup was today
-#     but hasn't happened yet, so the relevant boundary is yesterday's wakeup
-#     — but actually we're still in tonight's session, so don't clear.
-#   - If NOW >= WAKE_M (e.g. 23:30, after 06:00): last wakeup was today.
-#     Clear if the file predates today's wakeup.
-#
-# Simplified: we only clear if NOW >= WAKE_M (we're in the pre-midnight
-# portion of a bedtime session) AND the file is from before today's wakeup.
-# If NOW < WAKE_M we're in the post-midnight portion of the same session
-# that started yesterday — never clear.
 if [ -f "$VIOLATIONS_FILE" ]; then
     if [ "$NOW" -ge "$WAKE_M" ]; then
         TODAY=$(date +%Y-%m-%d)
@@ -87,6 +66,20 @@ if [ -f "$VIOLATIONS_FILE" ]; then
         fi
     fi
 fi
+
+# --- Bedtime window check ---
+# If we're not in the bedtime window, exit silently.
+if [ "$BED_M" -gt "$WAKE_M" ]; then
+    if [ "$NOW" -lt "$BED_M" ] && [ "$NOW" -ge "$WAKE_M" ]; then
+        exit 0
+    fi
+else
+    if [ "$NOW" -lt "$BED_M" ] || [ "$NOW" -ge "$WAKE_M" ]; then
+        exit 0
+    fi
+fi
+
+# --- We're in the bedtime window ---
 
 # Log this violation
 echo "$(date '+%Y-%m-%d %H:%M:%S')" >> "$VIOLATIONS_FILE"
