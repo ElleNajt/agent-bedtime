@@ -6,7 +6,18 @@ Claude Code hook that reminds you to go to bed. Every message you send past bedt
 
 ## How it works
 
-A `UserPromptSubmit` hook that fires on every message you send. If the current hour is past bedtime, it injects a bedtime reminder into Claude's context via stdout (exit 0). Claude sees it and reminds you naturally.
+A `UserPromptSubmit` hook that fires on every message you send. If the current time is past bedtime, it injects a bedtime reminder into Claude's context via stdout (exit 0). Claude sees it and reminds you naturally.
+
+Each prompt during bedtime is logged as a violation to `~/.agent-bedtime/violations`. As violations accumulate, the hook instructs Claude to get progressively more annoying:
+
+| Violations | Tone |
+|------------|------|
+| 1 | Gentle reminder |
+| 2-3 | Firm, mildly disappointed |
+| 4-5 | Annoyed, guilt-tripping, unenthusiastic about your work |
+| 6+ | Maximum annoyance — drags feet, complains, inserts sleep facts |
+
+Violations are automatically cleared once wakeup time passes the next day.
 
 ## Install
 

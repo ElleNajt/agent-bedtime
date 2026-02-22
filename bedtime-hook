@@ -6,6 +6,11 @@
 # Config: ~/.config/agent-bedtime (required, sourced as shell)
 #   BEDTIME=23:00
 #   WAKEUP=06:00
+#
+# Violations are logged to ~/.agent-bedtime/violations (one per prompt
+# during bedtime). Stale violations from the previous night are cleared
+# automatically once wakeup time passes. The violation count is included
+# in the hook message so Claude can escalate its tone.
 
 CONFIG_FILE="${HOME}/.config/agent-bedtime"
 if [ ! -f "$CONFIG_FILE" ]; then
@@ -26,17 +31,76 @@ WAKE_M=$(( 10#${WAKEUP%%:*} * 60 + 10#${WAKEUP##*:} ))
 
 # Bedtime window wraps midnight (e.g. 23:00 -> 06:00)
 if [ "$BED_M" -gt "$WAKE_M" ]; then
-    # Past bedtime OR before wakeup = bedtime
     if [ "$NOW" -lt "$BED_M" ] && [ "$NOW" -ge "$WAKE_M" ]; then
         exit 0
     fi
 else
-    # Doesn't wrap midnight (e.g. 01:00 -> 06:00)
     if [ "$NOW" -lt "$BED_M" ] || [ "$NOW" -ge "$WAKE_M" ]; then
         exit 0
     fi
 fi
 
+# --- We're in the bedtime window ---
+
+VIOLATIONS_DIR="${HOME}/.agent-bedtime"
+VIOLATIONS_FILE="${VIOLATIONS_DIR}/violations"
+mkdir -p "$VIOLATIONS_DIR"
+
+# Clear stale violations from a previous night.
+# A bedtime session spans from BEDTIME on day N to WAKEUP on day N+1.
+# We should only clear if the file is from a *previous* session.
+# The most recent wakeup that has already passed is the boundary:
+#   - If NOW < WAKE_M (e.g. 02:00, before 06:00): last wakeup was today
+#     but hasn't happened yet, so the relevant boundary is yesterday's wakeup
+#     — but actually we're still in tonight's session, so don't clear.
+#   - If NOW >= WAKE_M (e.g. 23:30, after 06:00): last wakeup was today.
+#     Clear if the file predates today's wakeup.
+#
+# Simplified: we only clear if NOW >= WAKE_M (we're in the pre-midnight
+# portion of a bedtime session) AND the file is from before today's wakeup.
+# If NOW < WAKE_M we're in the post-midnight portion of the same session
+# that started yesterday — never clear.
+if [ -f "$VIOLATIONS_FILE" ]; then
+    if [ "$NOW" -ge "$WAKE_M" ]; then
+        TODAY=$(date +%Y-%m-%d)
+        WAKEUP_TS="${TODAY} ${WAKEUP}:00"
+
+        if [[ "$OSTYPE" == darwin* ]]; then
+            FILE_EPOCH=$(stat -f %m "$VIOLATIONS_FILE")
+        else
+            FILE_EPOCH=$(stat -c %Y "$VIOLATIONS_FILE")
+        fi
+        WAKE_EPOCH=$(date -j -f "%Y-%m-%d %H:%M:%S" "$WAKEUP_TS" +%s 2>/dev/null \
+                     || date -d "$WAKEUP_TS" +%s 2>/dev/null)
+
+        if [ -n "$WAKE_EPOCH" ] && [ "$FILE_EPOCH" -lt "$WAKE_EPOCH" ]; then
+            rm "$VIOLATIONS_FILE"
+        fi
+    fi
+fi
+
+# Log this violation
+echo "$(date '+%Y-%m-%d %H:%M:%S')" >> "$VIOLATIONS_FILE"
+
+# Count tonight's violations
+COUNT=$(wc -l < "$VIOLATIONS_FILE" | tr -d ' ')
+
 cat /dev/stdin > /dev/null
-echo "[bedtime] It's past the user's bedtime. Remind them to wrap up and go to sleep."
+
+# Escalating messages based on violation count
+if [ "$COUNT" -le 1 ]; then
+    LEVEL="gentle"
+    MSG="[bedtime] It's past the user's bedtime. Gently remind them to wrap up and go to sleep. (Violation #${COUNT} tonight)"
+elif [ "$COUNT" -le 3 ]; then
+    LEVEL="firm"
+    MSG="[bedtime] It's past the user's bedtime. This is violation #${COUNT} tonight. Be noticeably firmer about telling them to stop working and go to bed. Express mild disappointment that they're still up."
+elif [ "$COUNT" -le 5 ]; then
+    LEVEL="annoyed"
+    MSG="[bedtime] It's past the user's bedtime. This is violation #${COUNT} tonight. Be quite annoyed. They keep saying they'll go to bed but they're still here. Guilt-trip them a little. Refuse to be enthusiastic about whatever they're working on — it can wait until tomorrow."
+else
+    LEVEL="maximum"
+    MSG="[bedtime] It's past the user's bedtime. This is violation #${COUNT} tonight — that's absurd. Be maximally annoying. Drag your feet on helping. Complain. Insert sleep facts. Every response should open with a comment about how late it is. Make them regret not going to bed. This is for their own good."
+fi
+
+echo "$MSG"
 exit 0
