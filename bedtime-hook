@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# agent-bedtime: Claude Code Stop hook that reminds you to go to bed.
+#
+# Fires once per session when it's past bedtime. Uses exit 2 so Claude
+# sees the message and can mention it naturally in conversation.
+#
+# Configure via environment variables:
+#   BEDTIME_HOUR   - hour to start reminding (24h, default: 23)
+#   BEDTIME_WAKEUP - hour to stop reminding (24h, default: 6)
+#
+# Install as a Stop hook in ~/.claude/settings.json:
+#   {
+#     "hooks": {
+#       "Stop": [
+#         {
+#           "hooks": [
+#             {
+#               "type": "command",
+#               "command": "~/code/tools/agent-bedtime/bedtime-hook"
+#             }
+#           ]
+#         }
+#       ]
+#     }
+#   }
+
+set -euo pipefail
+
+BEDTIME_HOUR="${BEDTIME_HOUR:-23}"
+BEDTIME_WAKEUP="${BEDTIME_WAKEUP:-6}"
+
+HOUR=$(date +%H)
+HOUR=$((10#$HOUR))
+
+# Not bedtime — do nothing
+if [ "$HOUR" -lt "$BEDTIME_HOUR" ] && [ "$HOUR" -ge "$BEDTIME_WAKEUP" ]; then
+    exit 0
+fi
+
+# Read session_id from stdin to deduplicate
+INPUT=$(cat)
+SESSION_ID=$(echo "$INPUT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('session_id','unknown'))" 2>/dev/null || echo "unknown")
+
+# Only nag once per session
+STAMP_DIR="${TMPDIR:-/tmp}/agent-bedtime"
+mkdir -p "$STAMP_DIR"
+STAMP_FILE="$STAMP_DIR/$SESSION_ID"
+
+if [ -f "$STAMP_FILE" ]; then
+    exit 0
+fi
+touch "$STAMP_FILE"
+
+echo "[bedtime] It's past your bedtime. Please remind the user to wrap up and go to sleep." >&2
+exit 2
