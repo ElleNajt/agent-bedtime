@@ -4,31 +4,17 @@
 # Fires every turn when it's past bedtime. Uses exit 2 so Claude
 # sees the message and will keep reminding you until you stop.
 #
-# Configure via environment variables:
-#   BEDTIME_HOUR   - hour to start reminding (24h, default: 23)
-#   BEDTIME_WAKEUP - hour to stop reminding (24h, default: 6)
-#
-# Install as a Stop hook in ~/.claude/settings.json:
-#   {
-#     "hooks": {
-#       "Stop": [
-#         {
-#           "hooks": [
-#             {
-#               "type": "command",
-#               "command": "~/code/tools/agent-bedtime/bedtime-hook"
-#             }
-#           ]
-#         }
-#       ]
-#     }
-#   }
+# Config: ~/.config/agent-bedtime (sourced as shell, live-reloaded)
+#   BEDTIME_HOUR=23
+#   BEDTIME_WAKEUP=6
 
-BEDTIME_HOUR="${BEDTIME_HOUR:-23}"
-BEDTIME_WAKEUP="${BEDTIME_WAKEUP:-6}"
+BEDTIME_HOUR=23
+BEDTIME_WAKEUP=6
 
-HOUR=$(date +%H)
-HOUR=$((10#$HOUR))
+CONFIG_FILE="${HOME}/.config/agent-bedtime"
+[ -f "$CONFIG_FILE" ] && source "$CONFIG_FILE"
+
+HOUR=$((10#$(date +%H)))
 
 if [ "$HOUR" -lt "$BEDTIME_HOUR" ] && [ "$HOUR" -ge "$BEDTIME_WAKEUP" ]; then
     exit 0
