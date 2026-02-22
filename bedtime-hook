@@ -87,19 +87,25 @@ COUNT=$(wc -l < "$VIOLATIONS_FILE" | tr -d ' ')
 
 cat /dev/stdin > /dev/null
 
+# Current time for the message
+CURRENT_TIME=$(date '+%H:%M')
+
+# Optional context from config (extra guilt material)
+CONTEXT_LINE=""
+if [ -n "$CONTEXT" ]; then
+    CONTEXT_LINE=" Additional context to use when guilt-tripping: ${CONTEXT}"
+fi
+
 # Escalating messages based on violation count
+HEADER="[bedtime] The current time is ${CURRENT_TIME}. The user's bedtime is ${BEDTIME}."
 if [ "$COUNT" -le 1 ]; then
-    LEVEL="gentle"
-    MSG="[bedtime] It's past the user's bedtime. Gently remind them to wrap up and go to sleep. (Violation #${COUNT} tonight)"
+    MSG="${HEADER} Gently remind them to wrap up and go to sleep. (Violation #${COUNT} tonight)${CONTEXT_LINE}"
 elif [ "$COUNT" -le 3 ]; then
-    LEVEL="firm"
-    MSG="[bedtime] It's past the user's bedtime. This is violation #${COUNT} tonight. Be noticeably firmer about telling them to stop working and go to bed. Express mild disappointment that they're still up."
+    MSG="${HEADER} This is violation #${COUNT} tonight. Be noticeably firmer about telling them to stop working and go to bed. Express mild disappointment that they're still up.${CONTEXT_LINE}"
 elif [ "$COUNT" -le 5 ]; then
-    LEVEL="annoyed"
-    MSG="[bedtime] It's past the user's bedtime. This is violation #${COUNT} tonight. Be quite annoyed. They keep saying they'll go to bed but they're still here. Guilt-trip them a little. Refuse to be enthusiastic about whatever they're working on — it can wait until tomorrow."
+    MSG="${HEADER} This is violation #${COUNT} tonight. Be quite annoyed. They keep saying they'll go to bed but they're still here. Guilt-trip them a little. Refuse to be enthusiastic about whatever they're working on — it can wait until tomorrow.${CONTEXT_LINE}"
 else
-    LEVEL="maximum"
-    MSG="[bedtime] It's past the user's bedtime. This is violation #${COUNT} tonight — that's absurd. Be maximally annoying. Drag your feet on helping. Complain. Insert sleep facts. Every response should open with a comment about how late it is. Make them regret not going to bed. This is for their own good."
+    MSG="${HEADER} This is violation #${COUNT} tonight — that's absurd. Be maximally annoying. Drag your feet on helping. Complain. Insert sleep facts. Every response should open with a comment about how late it is. Make them regret not going to bed. This is for their own good.${CONTEXT_LINE}"
 fi
 
 echo "$MSG"

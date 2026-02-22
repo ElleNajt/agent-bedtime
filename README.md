@@ -49,4 +49,10 @@ BEDTIME=23:00
 WAKEUP=06:00
 ```
 
+Optionally, add a `CONTEXT` line with personalized guilt material. This gets included in the hook message at higher violation tiers, giving Claude extra ammunition:
+
+```
+CONTEXT="The user has a 7am meeting tomorrow. They also said they'd start a better sleep schedule this week."
+```
+
 Changes take effect immediately — the file is sourced on every hook invocation, so no restart needed.
