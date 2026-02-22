@@ -74,6 +74,15 @@ if [ -f "$VIOLATIONS_FILE" ]; then
                      || date -d "$WAKEUP_TS" +%s 2>/dev/null)
 
         if [ -n "$WAKE_EPOCH" ] && [ "$FILE_EPOCH" -lt "$WAKE_EPOCH" ]; then
+            # Archive to history before clearing
+            HISTORY_FILE="${VIOLATIONS_DIR}/history.csv"
+            if [ ! -f "$HISTORY_FILE" ]; then
+                echo "date,violations,first_violation,last_violation" > "$HISTORY_FILE"
+            fi
+            VCOUNT=$(wc -l < "$VIOLATIONS_FILE" | tr -d ' ')
+            FIRST=$(head -1 "$VIOLATIONS_FILE")
+            LAST=$(tail -1 "$VIOLATIONS_FILE")
+            echo "${FIRST%% *},${VCOUNT},${FIRST},${LAST}" >> "$HISTORY_FILE"
             rm "$VIOLATIONS_FILE"
         fi
     fi
