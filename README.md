@@ -17,7 +17,12 @@ Each prompt during bedtime is logged as a violation to `~/.agent-bedtime/violati
 | 4-5 | Persistent and direct, keeps responses short, won't engage with new work |
 | 6+ | Maximally stubborn, extremely brief, enthusiastically sells you on how great sleep is |
 
-Violations are automatically cleared once wakeup time passes the next day.
+Violations are automatically cleared once wakeup time passes the next day. On clearing, a summary row is appended to `~/.agent-bedtime/history.csv`:
+
+```
+date,violations,first_violation,last_violation
+2026-02-21,14,2026-02-21 23:57:01,2026-02-22 00:41:30
+```
 
 ## Install
 
