@@ -4,23 +4,37 @@
 # stdout adds context to Claude's response — no loop, no blocking.
 #
 # Config: ~/.config/agent-bedtime (required, sourced as shell)
-#   BEDTIME_HOUR=23
-#   BEDTIME_WAKEUP=6
+#   BEDTIME=23:00
+#   WAKEUP=06:00
 
 CONFIG_FILE="${HOME}/.config/agent-bedtime"
 if [ ! -f "$CONFIG_FILE" ]; then
     echo "[bedtime] Missing config file: $CONFIG_FILE" >&2
     echo "Create it with:" >&2
-    echo "  echo 'BEDTIME_HOUR=23' > $CONFIG_FILE" >&2
-    echo "  echo 'BEDTIME_WAKEUP=6' >> $CONFIG_FILE" >&2
+    echo "  echo 'BEDTIME=23:00' > $CONFIG_FILE" >&2
+    echo "  echo 'WAKEUP=06:00' >> $CONFIG_FILE" >&2
     exit 1
 fi
 source "$CONFIG_FILE"
 
-HOUR=$((10#$(date +%H)))
+# Current time as minutes since midnight
+NOW=$(( 10#$(date +%H) * 60 + 10#$(date +%M) ))
 
-if [ "$HOUR" -lt "$BEDTIME_HOUR" ] && [ "$HOUR" -ge "$BEDTIME_WAKEUP" ]; then
-    exit 0
+# Parse HH:MM to minutes since midnight
+BED_M=$(( 10#${BEDTIME%%:*} * 60 + 10#${BEDTIME##*:} ))
+WAKE_M=$(( 10#${WAKEUP%%:*} * 60 + 10#${WAKEUP##*:} ))
+
+# Bedtime window wraps midnight (e.g. 23:00 -> 06:00)
+if [ "$BED_M" -gt "$WAKE_M" ]; then
+    # Past bedtime OR before wakeup = bedtime
+    if [ "$NOW" -lt "$BED_M" ] && [ "$NOW" -ge "$WAKE_M" ]; then
+        exit 0
+    fi
+else
+    # Doesn't wrap midnight (e.g. 01:00 -> 06:00)
+    if [ "$NOW" -lt "$BED_M" ] || [ "$NOW" -ge "$WAKE_M" ]; then
+        exit 0
+    fi
 fi
 
 cat /dev/stdin > /dev/null

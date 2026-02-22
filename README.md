@@ -31,11 +31,11 @@ Add to `~/.claude/settings.json`:
 
 ## Config
 
-Edit `~/.config/agent-bedtime`:
+Create `~/.config/agent-bedtime` (required):
 
 ```
-BEDTIME_HOUR=23
-BEDTIME_WAKEUP=6
+BEDTIME=23:00
+WAKEUP=06:00
 ```
 
 Changes take effect immediately — the file is sourced on every hook invocation, so no restart needed.
