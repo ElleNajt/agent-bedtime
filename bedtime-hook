@@ -3,15 +3,19 @@
 # to go to bed. Fires on every user message past bedtime. Exit 0 with
 # stdout adds context to Claude's response — no loop, no blocking.
 #
-# Config: ~/.config/agent-bedtime (sourced as shell, live-reloaded)
+# Config: ~/.config/agent-bedtime (required, sourced as shell)
 #   BEDTIME_HOUR=23
 #   BEDTIME_WAKEUP=6
 
-BEDTIME_HOUR=23
-BEDTIME_WAKEUP=6
-
 CONFIG_FILE="${HOME}/.config/agent-bedtime"
-[ -f "$CONFIG_FILE" ] && source "$CONFIG_FILE"
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "[bedtime] Missing config file: $CONFIG_FILE" >&2
+    echo "Create it with:" >&2
+    echo "  echo 'BEDTIME_HOUR=23' > $CONFIG_FILE" >&2
+    echo "  echo 'BEDTIME_WAKEUP=6' >> $CONFIG_FILE" >&2
+    exit 1
+fi
+source "$CONFIG_FILE"
 
 HOUR=$((10#$(date +%H)))
 
